@@ -84,9 +84,6 @@ async function getLatestEmail(name: string, pwd: string, sender?: string, subjec
     const userMail = process.env.EMAIL;
     const password = process.env.PASSWORD;
 
-    await getLatestEmail(userMail, password);
-    return;
-
     const page = await chrome.newPage();
     await page.goto("https://chatgpt.com/");
     await page.click("//button[contains(., 'Sign up for free')]");
@@ -98,6 +95,9 @@ async function getLatestEmail(name: string, pwd: string, sender?: string, subjec
     await page.type("//input[@name='new-password']", password);
     await page.click("//button[contains(., 'Continue')]");
     await page.waitForNavigation();
+
+    await getLatestEmail(userMail, password);
+    process.exit();
 
     const code = "11111";
 
