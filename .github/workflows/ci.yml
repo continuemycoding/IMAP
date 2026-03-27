@@ -32,7 +32,7 @@ jobs:
             
             echo "Cleanup complete."
 
-      - name: Install Dependencies
+      - name: 运行
         run: |
             yarn
             yarn build

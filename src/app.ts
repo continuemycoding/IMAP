@@ -5,24 +5,8 @@ import os from 'os';
 import axios from 'axios';
 import puppeteer, { Browser, Page } from 'puppeteer';
 import logger from './logger.js';
-import { Wallet } from "ethers";
-import { faker } from '@faker-js/faker';
-import retry from 'async-retry';
 import { authenticator } from 'otplib';
 import githubAnnotation from './annotations.js';
-import { Redis } from '@upstash/redis';
-
-// set http_proxy=http://127.0.0.1:10808
-// set https_proxy=http://127.0.0.1:10808
-// set all_proxy=socks5://127.0.0.1:10808
-
-// set HTTP_PROXY=http://127.0.0.1:10808
-// set HTTPS_PROXY=http://127.0.0.1:10808
-// set ALL_PROXY=socks5://127.0.0.1:10808
-
-process.env.HTTP_PROXY = "http://127.0.0.1:10808";
-process.env.HTTPS_PROXY = "http://127.0.0.1:10808";
-process.env.ALL_PROXY = "socks5://127.0.0.1:10808";
 
 const MAX_TIMEOUT = Math.pow(2, 31) - 1;
 
