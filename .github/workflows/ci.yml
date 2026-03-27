@@ -32,11 +32,11 @@ jobs:
             
             echo "Cleanup complete."
 
-      - name:
+      - name: Install Dependencies
         run: |
-            pip install python-dotenv
-      
-      - name: 
+            pip install python-dotenv requests
+
+      - name: Fetch and Save Emails
         shell: python
         env:
             PYTHONIOENCODING: utf-8
@@ -49,6 +49,7 @@ jobs:
             from email.header import decode_header, make_header
             from dotenv import load_dotenv
             import os
+            import re
 
             load_dotenv(dotenv_path='.env')
 
@@ -70,7 +71,6 @@ jobs:
 
             def generate_auth_string(email_user,access_token):
                 auth_string = f"user={email_user}\1auth=Bearer {access_token}\1\1"
-                print(auth_string)
                 return auth_string
 
             def get_mail_info(email_user,access_token):
@@ -91,30 +91,26 @@ jobs:
                             raw_email = msg_data[0][1]
                             email_message = email.message_from_bytes(raw_email)
                             subject = str(make_header(decode_header(email_message['SUBJECT'])))  # 主题
-                            mail_from = str(make_header(decode_header(email_message['From']))).replace('<', '(').replace('>',
-                                                                                                                        ')')  # 发件人
-                            mail_to = str(make_header(decode_header(email_message['To']))).replace('<', '(').replace('>',
-                                                                                                                    ')')  # 收件人
+                            mail_from = str(make_header(decode_header(email_message['From']))).replace('<', '(').replace('>', ')')  # 发件人
+                            mail_to = str(make_header(decode_header(email_message['To']))).replace('<', '(').replace('>', ')')  # 收件人
                             mail_dt = parsedate_to_datetime(email_message['Date']).strftime("%Y-%m-%d %H:%M:%S")  # 收件时间
+                            
                             if email_message.is_multipart():
                                 for part in email_message.walk():
                                     content_type = part.get_content_type()
                                     if content_type in ["text/html"]:
                                         payload = part.get_payload(decode=True)
                                         body += payload.decode('utf-8', errors='ignore')
-
                             else:
                                 body = email_message.get_payload(decode=True).decode('utf-8', errors='ignore')
-                            res_dict = {"subject": subject, "mail_from": mail_from, "mail_to": mail_to, "mail_dt": mail_dt,
-                                        "body": body}
+                            
+                            res_dict = {"subject": subject, "mail_from": mail_from, "mail_to": mail_to, "mail_dt": mail_dt, "body": body}
                             result_list.append(res_dict)
                         else:
-                            res_dict = {"error_key": "解析失败", "error_msg": "邮件信息解析失败，请联系管理员优化处理！"}
-                            return res_dict
+                            return {"error_key": "解析失败", "error_msg": "邮件信息解析失败，请联系管理员优化处理！"}
                     return result_list
                 else:
-                    res_dict = {"error_key": "登录失败", "error_msg": "登录失败，账号异常!"}
-                    return res_dict
+                    return {"error_key": "登录失败", "error_msg": "登录失败，账号异常!"}
 
             client_id = os.getenv('CLIENT_ID')
             refresh_token = os.getenv('TOKEN')
@@ -124,14 +120,36 @@ jobs:
             if access_res[0]:
                 access_token = access_res[1]
                 mail_info_res = get_mail_info(email_user, access_token)
+                
                 if isinstance(mail_info_res, list):
-                    for mail_info in mail_info_res:
+                    # 创建一个目录用来存放生成的 HTML 文件
+                    os.makedirs('emails', exist_ok=True)
+                    
+                    for i, mail_info in enumerate(mail_info_res):
+                        print("-" * 40)
                         print(f"邮件主题：{mail_info['subject']}")
                         print(f"发件时间：{mail_info['mail_dt']}")
                         print(f"发件人：{mail_info['mail_from']}")
                         print(f"收件人：{mail_info['mail_to']}")
-                        print(f"邮件正文：{mail_info['body']}")
+                        
+                        # 过滤掉文件名中不允许的特殊字符
+                        safe_subject = re.sub(r'[\\/*?:"<>|]', "", mail_info['subject'])[:30]
+                        file_name = f"emails/{i+1}_{safe_subject}.html"
+                        
+                        # 将 HTML 源码写入文件
+                        with open(file_name, "w", encoding="utf-8") as f:
+                            f.write(mail_info['body'])
+                        
+                        print(f"✅ 邮件正文已保存为网页: {file_name}")
+                        print("-" * 40)
                 else:
                     print(mail_info_res.get("error_msg"))
             else:
                 print(access_res[1])
+
+      - name: Upload Rendered Emails as Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Rendered_Emails_HTML
+          path: emails/
+          retention-days: 7
