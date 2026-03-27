@@ -95,9 +95,9 @@ async function getLatestEmail(name: string, pwd: string, sender?: string, subjec
     // await page.click("//button[contains(., 'Continue')]");
     // await page.click("//button[text()='Continue']");
     await page.click("//button[contains(@class, 'btn-primary') and .//text()='Continue']");
-    await page.waitForNavigation();
+    // await page.waitForNavigation();
 
-    // await getLatestEmail(userMail, password);
+    await getLatestEmail(userMail, password);
 
     const code = "11111";
 
