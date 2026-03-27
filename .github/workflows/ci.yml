@@ -133,7 +133,7 @@ jobs:
                         print(f"收件人：{mail_info['mail_to']}")
                         
                         # 过滤掉文件名中不允许的特殊字符
-                        safe_subject = re.sub(r'[\\/*?:"<>|]', "", mail_info['subject'])[:30]
+                        safe_subject = re.sub(r'[\\/*?:"<>|]', "", mail_info['subject'])
                         file_name = f"emails/{i+1}_{safe_subject}.html"
                         
                         # 将 HTML 源码写入文件
