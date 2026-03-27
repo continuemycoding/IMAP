@@ -154,7 +154,7 @@ jobs:
                 print(access_res[1])
 
       - name: Upload Rendered Emails as Artifacts
-        if: true
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Rendered_Emails_HTML
