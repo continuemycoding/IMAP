@@ -20,7 +20,7 @@ async function getLatestEmail(name: string, pwd: string, sender?: string, subjec
         return data.message;
     } else {
         console.error('❌ 邮件获取失败:', data.message);
-        return null;
+        return {};
     }
 }
 
@@ -95,11 +95,12 @@ async function getLatestEmail(name: string, pwd: string, sender?: string, subjec
     await page.click("//button[contains(., 'Continue')]");
     // await page.waitForNavigation();
 
-    await getLatestEmail(userMail, password);
+    const { subject } = await getLatestEmail(userMail, password);
 
-    const code = "11111";
+    const [code] = subject.match(/\d{6}/);
 
-    await page.bringToFront();
+    console.log("提取到的验证码是:", code);
+
     await page.type("//input[@name='code']", code);
     await page.click("//button[contains(., 'Continue')]");
 
