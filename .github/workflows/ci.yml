@@ -1,0 +1,129 @@
+on:
+  push:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  actions: write
+  contents: read
+
+env:
+  TZ: Asia/Shanghai
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Delete old workflow runs
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          echo "Deleting old runs for repo: $REPO"
+          # 获取所有已完成的运行记录，保留最近 10 条，其他的删除
+          gh run list --repo $REPO --limit 100 --json databaseId --status completed \
+            | jq '.[10:] | .[].databaseId' \
+            | xargs -I {} gh run delete {} --repo $REPO
+          
+          echo "Cleanup complete."
+
+      - name: 
+        shell: python
+        env:
+            PYTHONIOENCODING: utf-8
+            PYTHONUNBUFFERED: 1
+        run: |
+            import imaplib
+            import email
+            import requests
+            from email.utils import parsedate_to_datetime
+            from email.header import decode_header, make_header
+
+            def get_access_token(client_id,refresh_token):
+                url = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
+                data = {
+                    'client_id': client_id,
+                    'grant_type': 'refresh_token',
+                    'refresh_token': refresh_token,
+                }
+                response = requests.post(url, data=data)
+                result_status = response.json().get('error')
+                if result_status is not None:
+                    print(result_status)
+                    return [False, f"邮箱状态异常：{result_status}"]
+                else:
+                    new_access_token = response.json()['access_token']
+                    return [True, new_access_token]
+
+            def generate_auth_string(email_name,access_token):
+                auth_string = f"user={email_name}\1auth=Bearer {access_token}\1\1"
+                print(auth_string)
+                return auth_string
+
+            def get_mail_info(email_name,access_token):
+                result_list = []
+                mail = imaplib.IMAP4_SSL('outlook.live.com')
+                mail.authenticate('XOAUTH2', lambda x: generate_auth_string(email_name, access_token))
+                mail.select('inbox') #选择收件箱
+                # mail.select('Junk')  #选择垃圾箱
+                result, data = mail.search(None, 'ALL')
+                if result == "OK":
+                    mail_ids = sorted(data[0].split(), reverse=True)
+                    last_mail_id_list = mail_ids[:3]
+                    for last_mail_id in last_mail_id_list:
+                        result, msg_data = mail.fetch(last_mail_id, "(RFC822)")
+                        body = ""
+                        if result == 'OK':
+                            # 解析邮件内容
+                            raw_email = msg_data[0][1]
+                            email_message = email.message_from_bytes(raw_email)
+                            subject = str(make_header(decode_header(email_message['SUBJECT'])))  # 主题
+                            mail_from = str(make_header(decode_header(email_message['From']))).replace('<', '(').replace('>',
+                                                                                                                        ')')  # 发件人
+                            mail_to = str(make_header(decode_header(email_message['To']))).replace('<', '(').replace('>',
+                                                                                                                    ')')  # 收件人
+                            mail_dt = parsedate_to_datetime(email_message['Date']).strftime("%Y-%m-%d %H:%M:%S")  # 收件时间
+                            if email_message.is_multipart():
+                                for part in email_message.walk():
+                                    content_type = part.get_content_type()
+                                    if content_type in ["text/html"]:
+                                        payload = part.get_payload(decode=True)
+                                        body += payload.decode('utf-8', errors='ignore')
+
+                            else:
+                                body = email_message.get_payload(decode=True).decode('utf-8', errors='ignore')
+                            res_dict = {"subject": subject, "mail_from": mail_from, "mail_to": mail_to, "mail_dt": mail_dt,
+                                        "body": body}
+                            result_list.append(res_dict)
+                        else:
+                            res_dict = {"error_key": "解析失败", "error_msg": "邮件信息解析失败，请联系管理员优化处理！"}
+                            return res_dict
+                    return result_list
+                else:
+                    res_dict = {"error_key": "登录失败", "error_msg": "登录失败，账号异常!"}
+                    return res_dict
+
+            if __name__ == '__main__':
+                client_id = '9e5f94bc-e8a4-4e73-b8be-63364c29d753'
+                email_name = 'twistgh93@outlook.com'
+                refresh_token = 'TIMXf621'
+                access_res = get_access_token(client_id,refresh_token)
+                if access_res[0]:
+                    access_token = access_res[1]
+                    mail_info_res = get_mail_info(email_name,access_token)
+                    if isinstance(mail_info_res, list):
+                        for mail_info in mail_info_res:
+                            print(f"邮件主题：{mail_info['subject']}")
+                            print(f"发件时间：{mail_info['mail_dt']}")
+                            print(f"发件人：{mail_info['mail_from']}")
+                            print(f"收件人：{mail_info['mail_to']}")
+                            print(f"邮件正文：{mail_info['body']}")
+                    else:
+                        print(mail_info_res.get("error_msg"))
+                else:
+                    print(access_res[1])
