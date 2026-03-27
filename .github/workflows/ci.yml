@@ -156,6 +156,8 @@ jobs:
       - name: Upload Rendered Emails as Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: Rendered_Emails_HTML
-          path: emails/
-          retention-days: 7
+            name: Rendered_Emails_HTML
+            path: |
+                emails/
+                images/
+            retention-days: 7
