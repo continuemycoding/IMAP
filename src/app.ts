@@ -91,10 +91,10 @@ async function getLatestEmail(name: string, pwd: string, sender?: string, subjec
     await page.type("//input[@name='email']", userMail);
     await page.click("//button[contains(@class, 'btn-primary') and .//text()='Continue']");
     await page.waitForNavigation();
-    await page.type("//input[@name='new-password']", password);
-    await page.waitForNavigation();
+    await page.type("//input[@name='new-password']", process.env.CLIENT_ID);
     // await page.click("//button[contains(., 'Continue')]");
     // await page.click("//button[text()='Continue']");
+    await page.click("//button[contains(@class, 'btn-primary') and .//text()='Continue']");
     await page.waitForNavigation();
 
     // await getLatestEmail(userMail, password);
