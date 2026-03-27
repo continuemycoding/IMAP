@@ -21,8 +21,8 @@ jobs:
 
       - name: Delete old workflow runs
         env:
-            GH_TOKEN: ${{ github.token }}
-            REPO: ${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
         run: |
             echo "Deleting old runs for repo: $REPO"
             # 获取所有已完成的运行记录，保留最近 10 条，其他的删除
@@ -45,8 +45,8 @@ jobs:
       - name: Fetch and Save Emails
         shell: python
         env:
-            PYTHONIOENCODING: utf-8
-            PYTHONUNBUFFERED: 1
+          PYTHONIOENCODING: utf-8
+          PYTHONUNBUFFERED: 1
         run: |
             import imaplib
             import email
@@ -154,10 +154,11 @@ jobs:
                 print(access_res[1])
 
       - name: Upload Rendered Emails as Artifacts
+        if: true
         uses: actions/upload-artifact@v4
         with:
-            name: Rendered_Emails_HTML
-            path: |
-                emails/
-                images/
-            retention-days: 7
+          name: Rendered_Emails_HTML
+          path: |
+            emails/
+            images/
+          retention-days: 7
