@@ -21,17 +21,21 @@ jobs:
 
       - name: Delete old workflow runs
         env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
+            GH_TOKEN: ${{ github.token }}
+            REPO: ${{ github.repository }}
         run: |
-          echo "Deleting old runs for repo: $REPO"
-          # 获取所有已完成的运行记录，保留最近 10 条，其他的删除
-          gh run list --repo $REPO --limit 100 --json databaseId --status completed \
+            echo "Deleting old runs for repo: $REPO"
+            # 获取所有已完成的运行记录，保留最近 10 条，其他的删除
+            gh run list --repo $REPO --limit 100 --json databaseId --status completed \
             | jq '.[10:] | .[].databaseId' \
             | xargs -I {} gh run delete {} --repo $REPO
-          
-          echo "Cleanup complete."
+            
+            echo "Cleanup complete."
 
+      - name:
+        run: |
+            pip install python-dotenv
+      
       - name: 
         shell: python
         env:
@@ -43,6 +47,10 @@ jobs:
             import requests
             from email.utils import parsedate_to_datetime
             from email.header import decode_header, make_header
+            from dotenv import load_dotenv
+            import os
+
+            load_dotenv(dotenv_path='.env')
 
             def get_access_token(client_id,refresh_token):
                 url = 'https://login.microsoftonline.com/common/oauth2/v2.0/token'
@@ -60,15 +68,15 @@ jobs:
                     new_access_token = response.json()['access_token']
                     return [True, new_access_token]
 
-            def generate_auth_string(email_name,access_token):
-                auth_string = f"user={email_name}\1auth=Bearer {access_token}\1\1"
+            def generate_auth_string(email_user,access_token):
+                auth_string = f"user={email_user}\1auth=Bearer {access_token}\1\1"
                 print(auth_string)
                 return auth_string
 
-            def get_mail_info(email_name,access_token):
+            def get_mail_info(email_user,access_token):
                 result_list = []
                 mail = imaplib.IMAP4_SSL('outlook.live.com')
-                mail.authenticate('XOAUTH2', lambda x: generate_auth_string(email_name, access_token))
+                mail.authenticate('XOAUTH2', lambda x: generate_auth_string(email_user, access_token))
                 mail.select('inbox') #选择收件箱
                 # mail.select('Junk')  #选择垃圾箱
                 result, data = mail.search(None, 'ALL')
@@ -108,22 +116,22 @@ jobs:
                     res_dict = {"error_key": "登录失败", "error_msg": "登录失败，账号异常!"}
                     return res_dict
 
-            if __name__ == '__main__':
-                client_id = '9e5f94bc-e8a4-4e73-b8be-63364c29d753'
-                email_name = 'twistgh93@outlook.com'
-                refresh_token = 'TIMXf621'
-                access_res = get_access_token(client_id,refresh_token)
-                if access_res[0]:
-                    access_token = access_res[1]
-                    mail_info_res = get_mail_info(email_name,access_token)
-                    if isinstance(mail_info_res, list):
-                        for mail_info in mail_info_res:
-                            print(f"邮件主题：{mail_info['subject']}")
-                            print(f"发件时间：{mail_info['mail_dt']}")
-                            print(f"发件人：{mail_info['mail_from']}")
-                            print(f"收件人：{mail_info['mail_to']}")
-                            print(f"邮件正文：{mail_info['body']}")
-                    else:
-                        print(mail_info_res.get("error_msg"))
+            client_id = os.getenv('CLIENT_ID')
+            refresh_token = os.getenv('TOKEN')
+            email_user = os.getenv('EMAIL')
+
+            access_res = get_access_token(client_id, refresh_token)
+            if access_res[0]:
+                access_token = access_res[1]
+                mail_info_res = get_mail_info(email_user, access_token)
+                if isinstance(mail_info_res, list):
+                    for mail_info in mail_info_res:
+                        print(f"邮件主题：{mail_info['subject']}")
+                        print(f"发件时间：{mail_info['mail_dt']}")
+                        print(f"发件人：{mail_info['mail_from']}")
+                        print(f"收件人：{mail_info['mail_to']}")
+                        print(f"邮件正文：{mail_info['body']}")
                 else:
-                    print(access_res[1])
+                    print(mail_info_res.get("error_msg"))
+            else:
+                print(access_res[1])
