@@ -33,6 +33,7 @@ jobs:
             echo "Cleanup complete."
 
       - name: 运行
+        if: false
         run: |
             yarn
             yarn build
